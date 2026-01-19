@@ -1,52 +1,73 @@
+require('dotenv').config();
 const express = require("express");
-const app = express();
-const port = process.env.PORT || 8080;
+const { Pool } = require("pg");
 const jwt = require("jsonwebtoken");
 
-const users = [
-    { id: 1, name: "Ada Lovelace", email: "ada@example.com", password: "12345678", role: "admin"},
-    { id: 2, name: "Alan Turing", email: "alan@example.com", password: "12345678", role: "user"},
-];
-
-const products = [
-    { id: 1, name: "Bicycle", cost: 400, userId: 1 },
-    { id: 2, name: "Car", cost: 10000, userId: 2 },
-    { id: 3, name: "Laptop", cost: 900, userId: 1 },
-    { id: 4, name: "Headphones", cost: 120, userId: 2 },
-];
-
-const logger = require("./middleware/logger");
-const debug = require("./middleware/debug");
-const auth = require("./middleware/auth")
+const app = express();
+const port = process.env.PORT || 8080;
 
 app.use(express.json());
 
-app.get("/", debug, logger("requests.log"), (req, res) => {
-    res.send("Hello World!");
+// --- Database Connection ---
+const pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_DATABASE,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+    ssl: {
+        rejectUnauthorized: false // Required for Azure PostgreSQL connection
+    }
 });
+
+const auth = require("./middleware/auth");
+
+// --- Routes ---
 
 // Get Products
-app.get("/products", auth.auth, (req, res) => {
-    res.json(products);
+app.get("/products", auth.auth, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM products");
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Server Error");
+    }
 });
 
-// Login
-app.post("/login", (req, res) => {
+// Login with Parameterized Query
+app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
-    // Note: Passwords should be encrypted for real apps!
-    const user = users.find(u => u.email === email && u.password === password);
-    if (!user) return res.status(401).send("Invalid email or password");
+    try {
+        // Use $1, $2 for parameterized queries in pg to prevent SQL injection
+        const query = "SELECT id, role FROM users WHERE email = $1 AND password = $2";
+        const result = await pool.query(query, [email, password]);
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token, message: "Logged in successfully" });
+        const user = result.rows[0];
+
+        if (!user) {
+            return res.status(401).send("Invalid email or password");
+        }
+
+        const token = jwt.sign(
+            { id: user.id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        res.json({ token, message: "Logged in successfully" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Login Error");
+    }
 });
 
-// User specific routes
+// Admin Route
 app.get("/admin", auth.auth, auth.role("admin"), (req, res) => {
     res.json({ message: "Welcome to the admin panel" });
 });
 
 app.listen(port, () => {
-    console.log(`Example app running at http://localhost:${port}`);
+    console.log(`Server running on port ${port}`);
 });
