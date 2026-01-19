@@ -23,6 +23,9 @@ const pool = new Pool({
 const auth = require("./middleware/auth");
 
 // --- Routes ---
+app.get('/', async (req, res) => {
+    res.send("Welcome to the SWE4213 API!");
+});
 
 // Get Products
 app.get("/products", auth.auth, async (req, res) => {
