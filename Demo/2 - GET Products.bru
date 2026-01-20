@@ -1,0 +1,20 @@
+meta {
+  name: 2 - GET Products
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/products
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

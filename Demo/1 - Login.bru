@@ -1,0 +1,27 @@
+meta {
+  name: 1 - Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "admin@unb.ca", "password": "password123"
+  }
+}
+
+tests {
+  const body = res.getBody();         
+  bru.setEnvVar("token", body.token);
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

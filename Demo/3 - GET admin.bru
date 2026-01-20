@@ -1,0 +1,20 @@
+meta {
+  name: 3 - GET admin
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/admin
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
